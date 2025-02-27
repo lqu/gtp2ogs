@@ -189,6 +189,11 @@ export interface Config {
      */
     max_games_per_player?: number;
 
+    /** Maximum number of games played by a user per day
+     * @default 12
+     */
+    max_games_per_day?: number;
+
     /**********/
     /* Hidden */
     /**********/

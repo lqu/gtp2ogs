@@ -55,7 +55,8 @@ interface RejectionDetails {
         | "player_rank_out_of_range"
         | "not_accepting_new_challenges"
         | "too_many_games_for_player"
-        | "komi_out_of_range";
+        | "komi_out_of_range"
+        | "quota_reached";
     details: {
         [key: string]: any;
     };
@@ -309,6 +310,7 @@ class Main {
                         this.checkDeclineChallenges() ||
                         this.checkGamesPerPlayer(notification.user?.id) ||
                         this.checkKomi(notification.komi) ||
+                        this.checkQuota(notification.user) ||
                         undefined;
 
                     if (this.checkWhitelist(notification.user)) {
@@ -316,6 +318,7 @@ class Main {
                     }
 
                     if (!reject) {
+                        this.incrementUserGameCount(notification.user.id);
                         post(api1(`me/challenges/${notification.challenge_id}/accept`), {})
                             .then(ignore)
                             .catch(() => {
@@ -834,6 +837,58 @@ class Main {
                 message: `Komi is out of acceptable range`,
             };
         }
+    }
+
+    private games_today: Map<string, number> = new Map<string, number>(); // Map of user ID and number of games played today
+
+    /**
+     * Get today's date as a string in YYYY-MM-DD format
+     * UTC timezone
+     */
+    private getTodayString() {
+        return new Date().toISOString().split("T")[0];
+    }
+
+    /**
+     * Get the number of games a user has played today.
+     * If not found, default to 0.
+     * @param {number} userId - The unique user ID
+     * @returns {number} - The number of games played today
+     */
+    private getUserGameCount(userId: number): number {
+        const key = `${userId}_${this.getTodayString()}`;
+        return this.games_today.get(key) || 0; // Default to 0 if not found
+    }
+
+    /**
+     * Increment the game count for a user.
+     * TODO: if concurrency is ever an issue, this should be made atomic, but low risk low damage for now
+     * @param {number} userId - The unique user ID
+     */
+    private incrementUserGameCount(userId: number) {
+        const key = `${userId}_${this.getTodayString()}`;
+        const currentCount = this.games_today.get(key) || 0;
+        this.games_today.set(key, currentCount + 1);
+    }
+
+    /**
+     * Checks if a challenge can be accepted. If daily quota is reached, return a rejection message.
+     * @param {Object} user - The user object
+     */
+    checkQuota(user: { id: number; username: string }): RejectionDetails | undefined {
+        if (!config.max_games_per_day || config.max_games_per_day < 1) {
+            return undefined;
+        }
+        if (this.getUserGameCount(user.id) >= config.max_games_per_day) {
+            return {
+                message: `You have played too many games today. Have a rest and come back tomorrow.`,
+                rejection_code: "quota_reached",
+                details: {
+                    max_games_per_player: config.max_games_per_day,
+                },
+            };
+        }
+        return undefined;
     }
 
     terminate() {

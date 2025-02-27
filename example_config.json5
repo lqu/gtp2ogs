@@ -384,4 +384,10 @@
      * @default 60000
      */
     // status_update_frequency : 60000,
+
+    /** Sets the maximum number of games allowed for a user, daily
+     * Set to 0 to disable the limitation and allow all challenges.
+     * @default 12
+     */
+    max_games_per_day: 12,
 }
