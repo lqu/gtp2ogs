@@ -272,6 +272,11 @@
                     "type": "number",
                     "description": "Maximum amount of ongoing games to allow concurrently by the same player",
                     "default": 1
+                },
+                "max_games_per_day": {
+                    "type": "number",
+                    "description": "Maximum number of games played by a user per day",
+                    "default": 12
                 }
             },
             "required": [
